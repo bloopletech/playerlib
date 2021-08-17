@@ -29,21 +29,24 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager
  * Just a simple injection object, builds stuff.
  */
 object PlayerModule {
-    fun getPlayerHolder(context: Context, streamUrl: String) = PlayerHolder(context, streamUrl, PlayerState())
+    fun getPlayerHolder(context: Context, streamUrl: String, streamPosition: Long) =
+        PlayerHolder(context, streamUrl, streamPosition, PlayerState())
 
-    fun getPlayerNotificationManager(context: Context): PlayerNotificationManager =
-        PlayerNotificationManager.createWithNotificationChannel(
+    fun getPlayerNotificationManager(context: Context,
+                                     listener: PlayerNotificationManager.NotificationListener): PlayerNotificationManager =
+        PlayerNotificationManager.Builder(
             context,
-            PlayerService.NOTIFICATION_CHANNEL,
-            R.string.app_name,
             PlayerService.NOTIFICATION_ID,
-            getDescriptionAdapter(context)
+            PlayerService.NOTIFICATION_CHANNEL
         ).apply {
-            setFastForwardIncrementMs(0)
-            setOngoing(true)
-            setUseNavigationActions(false)
-            setRewindIncrementMs(0)
-            setStopAction(null)
+            setChannelNameResourceId(R.string.app_name)
+            setMediaDescriptionAdapter(getDescriptionAdapter(context))
+            setNotificationListener(listener)
+        }.build().apply {
+            //setOngoing(true)
+            setUsePreviousAction(false)
+            setUseNextAction(false)
+            setUseStopAction(true)
         }
 
     private fun getDescriptionAdapter(context: Context) = DescriptionAdapter(context)

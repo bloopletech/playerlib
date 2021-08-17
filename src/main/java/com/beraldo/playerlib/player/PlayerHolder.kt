@@ -18,18 +18,8 @@ package com.beraldo.playerlib.player
 
 import android.content.Context
 import android.media.AudioManager
-import android.net.Uri
 import androidx.media.AudioAttributesCompat
-import com.google.android.exoplayer2.ExoPlaybackException
-import com.google.android.exoplayer2.ExoPlayer
-import com.google.android.exoplayer2.ExoPlayerFactory
-import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.source.ExtractorMediaSource
-import com.google.android.exoplayer2.source.MediaSource
-import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory
-import org.jetbrains.anko.AnkoLogger
-import org.jetbrains.anko.info
+import com.google.android.exoplayer2.*
 
 /**
  * Creates and manages a [com.google.android.exoplayer2.ExoPlayer] instance.
@@ -37,8 +27,9 @@ import org.jetbrains.anko.info
 class PlayerHolder(
     context: Context,
     private val streamUrl: String,
+    private val streamPosition: Long,
     private val playerState: PlayerState
-) : AnkoLogger {
+) {
     val audioFocusPlayer: ExoPlayer
 
     // Create the player instance.
@@ -51,21 +42,23 @@ class PlayerHolder(
         audioFocusPlayer = AudioFocusWrapper(
             audioAttributes,
             audioManager,
-            ExoPlayerFactory.newSimpleInstance(context, DefaultTrackSelector())
-        ).apply { prepare(buildMediaSource(Uri.parse(streamUrl))) }
-        info { "SimpleExoPlayer created" }
-    }
+            SimpleExoPlayer.Builder(context).apply {
 
-    private fun buildMediaSource(uri: Uri): MediaSource {
-        return ExtractorMediaSource.Factory(DefaultHttpDataSourceFactory("exo-radiouci"))
-            .createMediaSource(uri)
+            }.build()
+        ).apply {
+            setMediaItem(MediaItem.fromUri(streamUrl))
+            seekTo(streamPosition)
+            prepare()
+        }
+        println("SimpleExoPlayer created")
     }
 
     // Prepare playback.
     fun start() {
         with(audioFocusPlayer) {
             // Restore state (after onResume()/onStart())
-            prepare(buildMediaSource(Uri.parse(streamUrl)))
+            setMediaItem(MediaItem.fromUri(streamUrl))
+            prepare()
             with(playerState) {
                 // Start playback when media has buffered enough
                 // (whenReady is true by default).
@@ -74,7 +67,7 @@ class PlayerHolder(
                 // Add logging.
                 attachLogging(audioFocusPlayer)
             }
-            info { "SimpleExoPlayer is started" }
+            println("SimpleExoPlayer is started")
         }
     }
 
@@ -88,15 +81,16 @@ class PlayerHolder(
                 whenReady = playWhenReady
             }
             // Stop the player (and release it's resources). The player instance can be reused.
-            stop(true)
+            stop()
+            clearMediaItems()
         }
-        info { "SimpleExoPlayer is stopped" }
+        println("SimpleExoPlayer is stopped")
     }
 
     // Destroy the player instance.
     fun release() {
         audioFocusPlayer.release() // player instance can't be used again.
-        info { "SimpleExoPlayer is released" }
+        println("SimpleExoPlayer is released")
     }
 
     /**
@@ -105,13 +99,13 @@ class PlayerHolder(
      */
     private fun attachLogging(exoPlayer: ExoPlayer) {
         // Write to log on state changes.
-        exoPlayer.addListener(object : Player.DefaultEventListener() {
+        exoPlayer.addListener(object : Player.Listener {
             override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
-                info { "playerStateChanged: ${getStateString(playbackState)}, $playWhenReady" }
+                println("playerStateChanged: ${getStateString(playbackState)}, $playWhenReady")
             }
 
-            override fun onPlayerError(error: ExoPlaybackException?) {
-                info { "playerError: $error" }
+            override fun onPlayerError(error: PlaybackException) {
+                println("playerError: $error")
             }
 
             fun getStateString(state: Int): String {

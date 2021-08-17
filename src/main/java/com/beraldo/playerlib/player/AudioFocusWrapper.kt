@@ -25,8 +25,6 @@ import androidx.annotation.RequiresApi
 import androidx.media.AudioAttributesCompat
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.SimpleExoPlayer
-import org.jetbrains.anko.AnkoLogger
-import org.jetbrains.anko.warn
 
 /**
  * Wrapper around a [SimpleExoPlayer] simplifies playback by automatically handling
@@ -37,7 +35,7 @@ class AudioFocusWrapper(
     private val audioAttributes: AudioAttributesCompat,
     private val audioManager: AudioManager,
     private val player: SimpleExoPlayer
-) : ExoPlayer by player, AnkoLogger {
+) : ExoPlayer by player {
     private var shouldPlayWhenReady = false
 
     private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
@@ -88,7 +86,7 @@ class AudioFocusWrapper(
             shouldPlayWhenReady = true
             audioFocusListener.onAudioFocusChange(AudioManager.AUDIOFOCUS_GAIN)
         } else {
-            warn { "Playback not started: Audio focus request denied" }
+           println("Playback not started: Audio focus request denied")
         }
     }
 

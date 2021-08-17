@@ -35,6 +35,7 @@ class PlayerService : IntentService("playerlib"), PlayerNotificationManager.Noti
         const val NOTIFICATION_ID = 100
         const val NOTIFICATION_CHANNEL = "playerlib_channel"
         const val STREAM_URL = "stream_url"
+        const val STREAM_POSITION = "stream_position"
     }
 
     private lateinit var playerHolder: PlayerHolder
@@ -42,8 +43,10 @@ class PlayerService : IntentService("playerlib"), PlayerNotificationManager.Noti
     private lateinit var playerNotificationManager: PlayerNotificationManager
 
     override fun onBind(intent: Intent?): IBinder {
-        intent?.getStringExtra(STREAM_URL)?.let {
-            initialize(it)
+        val streamUrl = intent?.getStringExtra(STREAM_URL)
+        val streamPosition = intent?.getLongExtra(STREAM_POSITION, 0) ?: 0
+        streamUrl?.let {
+            initialize(streamUrl, streamPosition)
             playerHolder.start()
         }
 
@@ -56,9 +59,9 @@ class PlayerService : IntentService("playerlib"), PlayerNotificationManager.Noti
         playerHolder.release()
     }
 
-    private fun initialize(streamUrl: String) {
+    private fun initialize(streamUrl: String, streamPosition: Long) {
         // Build a player holder
-        playerHolder = PlayerModule.getPlayerHolder(this, streamUrl)
+        playerHolder = PlayerModule.getPlayerHolder(this, streamUrl, streamPosition)
 
         /** Build a notification manager for our player, set a notification listener to this,
          * and assign the player just created.
@@ -67,8 +70,7 @@ class PlayerService : IntentService("playerlib"), PlayerNotificationManager.Noti
          * via the [PlayerNotificationManager.createWithNotificationChannel] because targeting Android O+
          * when building a notification we need to create a channel to which assign it.
          */
-        playerNotificationManager = PlayerModule.getPlayerNotificationManager(this).also {
-            it.setNotificationListener(this)
+        playerNotificationManager = PlayerModule.getPlayerNotificationManager(this, this).also {
             it.setPlayer(playerHolder.audioFocusPlayer)
         }
     }
@@ -79,10 +81,17 @@ class PlayerService : IntentService("playerlib"), PlayerNotificationManager.Noti
      * This way we can make our service a foreground service given a notification which was built
      * [playerNotificationManager].
      */
-    override fun onNotificationCancelled(notificationId: Int) {}
+    override fun onNotificationCancelled(notificationId: Int, dismissedByUser: Boolean) {
+        stopSelf()
+    }
 
-    override fun onNotificationStarted(notificationId: Int, notification: Notification?) {
-        startForeground(notificationId, notification)
+    override fun onNotificationPosted(
+        notificationId: Int,
+        notification: Notification,
+        ongoing: Boolean
+    ) {
+        if (ongoing) startForeground(notificationId, notification)
+        else stopForeground(false)
     }
 
     inner class PlayerServiceBinder : Binder() {
